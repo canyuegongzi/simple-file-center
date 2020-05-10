@@ -8,6 +8,7 @@ import {UploadController} from '../controller/upload.controller';
 import {UploadService} from '../service/service/upload.service';
 import {dirExists, fileType} from '../utils/file';
 import {FileService} from '../service/service/file.service';
+import {join} from "path";
 
 @Module({
   imports: [
@@ -17,12 +18,13 @@ import {FileService} from '../service/service/file.service';
         // 配置文件上传后的文件夹路径
         destination: async (req, file, cb) => {
             const dirType: string = fileType(file);
-            await dirExists(`./public/${dirType}`);
-            return cb(null, `./public/${dirType}`);
+            // await dirExists(`./public/${dirType}`);
+            await dirExists(`${join(__dirname, '../public/')}${dirType}`)
+            return cb(null, `${join(__dirname, '../public/')}${dirType}`);
         },
         filename: (req, file, cb) => {
-          // 在此处自定义保存后的文件名称
-            const filename = `${file.originalname.split('.')[0]}.${file.originalname.split('.')[1]}`;
+            // @ts-ignore
+            const filename = `${encodeURI(file.originalname, 'GBK').toString('iso8859-1')}`;
             return cb(null, filename);
         },
       }),

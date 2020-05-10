@@ -1,16 +1,15 @@
 import {Inject, Injectable} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import {ApiErrorCode} from '../../config/api-error-code.enum';
-import {ApiException} from '../../common/error/exceptions/api.exception';
 import {Category} from '../../model/entity/category.entity';
-import {QueryFileDto} from '../../model/DTO/file/query_file.dto';
 import {CreateFileDto} from '../../model/DTO/file/create_file.dto';
 import {File} from '../../model/entity/file.entity';
-import * as qiniu from 'qiniu';
-import {qiniuConfig, qiniuUploadConfig} from '../../config/config';
+import {qiniuUploadConfig} from '../../config/config.json';
 import {formatDate} from '../../utils/data-time';
 import {FileService} from './file.service';
+import {ApiException} from '../../common/error/exceptions/api.exception';
+import {ApiErrorCode} from '../../config/api-error-code.enum';
+import * as url from 'url';
 @Injectable()
 export class  QiniuService {
   constructor(
@@ -22,43 +21,64 @@ export class  QiniuService {
   ) {}
 
   /**
-   * 删除标签
-   * @param recommend
-   * @param id
+   * 。。
+   * 上传文件到七牛云
+   * @param token token
+   * @param filename 文件名
+   * @param req 请求内容
+   * @param putExtra
    */
-  public async deleteFile(id: number | string) {
-    try {
-      return await this.fileRepository
-          .createQueryBuilder()
-          .update(File)
-          .set({ isDelete: 1})
-          .where('id = :id', { id })
-          .execute();
-    } catch (e) {
-      throw new ApiException('操作失败', ApiErrorCode.AUTHORITY_CREATED_FILED, 200);
-    }
+  public uploadQiniu = (formUploader, token, filename, req, putExtra) => {
+    return new Promise((resolve, reject) => {
+      formUploader.put(token, filename, req.file.buffer, putExtra, async (respErr, respBody, respInfo) => {
+        if (respErr) {
+          throw respErr;
+        }
+        if (respInfo.statusCode === 200) {
+          const {originalname, encoding, size, destination} = req.file;
+          const params: CreateFileDto = {destination: originalname, encoding, size, time: formatDate(), name: originalname, categoryTypeName: originalname.split('.')[1], url: qiniuUploadConfig.persistentNotifyUrl + respBody.key, serverCategory: 1};
+          try {
+            await this.fileService.creatFile(params);
+            const qiUrl = qiniuUploadConfig.persistentNotifyUrl + respBody.key;
+            resolve(qiUrl);
+          } catch (e) {
+            const qiUrl = qiniuUploadConfig.persistentNotifyUrl + respBody.key;
+            resolve(qiUrl);
+          }
+        } else {
+          reject(respInfo);
+        }
+      });
+    });
   }
 
   /**
-   * 查询标签列表
-   * @param query
+   * 删除七牛云文件
+   * @param token token
+   * @param filename 文件名
+   * @param req 请求内容
+   * @param putExtra
    */
-  public async getList(query: QueryFileDto): Promise<any> {
-    try {
-      const res = await this.fileRepository
-          .createQueryBuilder('f')
-          .leftJoinAndSelect('f.category', 'c')
-          .where('f.isDelete = :isDelete', { isDelete: 0})
-          .orWhere('f.name like :name', { name: `%${query.name}%`})
-          .orWhere('c.id = :id', { id: query.cateGoryId})
-          .orderBy('f.name', 'ASC')
-          .skip((query.page - 1) * query.pageSize)
-          .take(query.pageSize)
-          .getManyAndCount();
-      return  { data: res[0], count: res[1]};
-    } catch (e) {
-      throw new ApiException(e.errorMessage, ApiErrorCode.AUTHORITY_CREATED_FILED, 200);
-    }
+  public async deleteQiniu(params, bucketManager, token) {
+    return new Promise(async (resolve, reject) => {
+      let fileInfo: any;
+      try {
+        fileInfo = await this.getInfoFile(params);
+        const info: any = url.parse(fileInfo.url, true);
+        if (info.path) {
+          const name: string = info.path.substr(1);
+          bucketManager.delete(qiniuUploadConfig.scope, name, ((err, respBody, respInfo) => {
+            if (err) {
+              console.log(err);
+              reject(err);
+            }
+            resolve(true);
+          }));
+        }
+      } catch (e) {
+        reject(e);
+      }
+    });
   }
 
   /**
@@ -74,52 +94,40 @@ export class  QiniuService {
   }
 
   /**
-   * 产生七牛的token
-   */
-  public creatQiniuToken() {
-    try {
-      const mac = new qiniu.auth.digest.Mac(qiniuConfig.accessKey, qiniuConfig.secretKey);
-      const putPolicy = new qiniu.rs.PutPolicy(qiniuConfig.options);
-      const uploadToken =  putPolicy.uploadToken(mac);
-      return { success: true, upToken: uploadToken };
-    } catch (e) {
-      return { success: false, upToken: '' };
-    }
-  }
-
-  /**
-   * 上传文件到七牛云
+   * 。。
+   * 上传文件到七牛云(多文件)
    * @param token token
    * @param filename 文件名
    * @param req 请求内容
    * @param putExtra
    */
-  public uploadQiniu = (formUploader, token, filename, req, putExtra) => {
-    return new Promise((resolve, reject) => {
-      formUploader.put(token, filename, req.file.buffer, putExtra, async (respErr, respBody, respInfo) => {
-        if (respErr) {
-          throw respErr;
+  public async multipleUploadQiniu(formUploader, token, req, putExtra, category, userName) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const files = req.files;
+        const results = [];
+        for (let i = 0; i < files.length; i++ ) {
+          const filename = `${files[i].originalname.split('.')[0]}.${new Date().getTime()}.${files[i].originalname.split('.')[1]}`;
+          formUploader.put(token, filename, files[i].buffer, putExtra, async (respErr, respBody, respInfo) => {
+            if (respErr) {
+              throw respErr;
+            }
+            if (respInfo.statusCode === 200) {
+              const params: CreateFileDto = {destination: files[i].originalname, encoding: files[i].encoding, size: files[i].size, userName, time: formatDate(), name: files[i].originalname, categoryTypeName: files[i].originalname.split('.')[1], url: qiniuUploadConfig.persistentNotifyUrl + respBody.key, serverCategory: 1};
+              results.push(params);
+              if (results.length === files.length) {
+                const res = await this.fileService.creatMultipleFile(results, category);
+                resolve(res);
+              }
+            } else {
+              throw new ApiException('上传失败', ApiErrorCode.AUTHORITY_CREATED_FILED, 200);
+            }
+          });
         }
-        if (respInfo.statusCode === 200) {
-          const {originalname, encoding, size} = req.file;
-          const params: CreateFileDto = {
-            destination: originalname,
-            encoding,
-            size,
-            time: formatDate(),
-            name: originalname,
-            categoryTypeName: originalname.split('.')[1],
-            url: qiniuUploadConfig.persistentNotifyUrl + respBody.key,
-            serverCategory: 1,
-          };
-          const qiData = await this.fileService.creatFile(params);
-          const qiUrl = qiniuUploadConfig.persistentNotifyUrl + respBody.key;
-          resolve(qiUrl);
-        } else {
-          reject(respInfo);
-        }
-      });
+      } catch (e) {
+        reject(e);
+        console.log(e);
+      }
     });
   }
-
 }

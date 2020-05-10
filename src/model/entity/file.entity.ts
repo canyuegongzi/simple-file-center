@@ -32,4 +32,7 @@ export class File {
 
     @Column({default: 0, comment: '服务器类别'})
     serverCategory: number;
+
+    @Column({default: null, nullable: true, comment: '用户'})
+    userName: string;
 }

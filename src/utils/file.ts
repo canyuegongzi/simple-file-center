@@ -2,8 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export const fileType = (file: any) => {
-    const type = file.originalname.split('.')[1];
-    console.log(type)
+    const typeList = file.originalname.split('.');
+    const type = typeList.length ? typeList[typeList.length - 1] : ''
     let dir: string;
     if (/\.(png|jpe?g|gif|svg)(\?\S*)?$/.test(file.originalname)) {
         dir = 'images';

@@ -36,13 +36,16 @@ export const listConvertTree = (list) =>  {
  * @param parentId
  * @param children
  */
-export const listToTree = (source, id?, parentId?, children?) => {
-    console.log(source);
-    let cloneData = JSON.parse(JSON.stringify(source))
-    return cloneData.filter(father => {
-        let branchArr = cloneData.filter(child => father[id] === child[parentId]);
-        branchArr.length > 0 ? father[children] = branchArr : ''
-        return father[parentId] === -1;
+export const listToTree = (source: any, id?: any, parentId?: any, children?: any) => {
+    const sortArr: any = source.sort((a: any, b: any) => {
+        return a[parentId] - b[parentId];
+    });
+    let minParentId = Array.isArray(sortArr) && sortArr.length > 0 ? sortArr[0].parentId : -1;
+    const cloneData = JSON.parse(JSON.stringify(source));
+    return cloneData.filter((father: any) => {
+        const branchArr = cloneData.filter((child: any) => father[id] === child[parentId]);
+        branchArr.length > 0 ? father[children] = branchArr : '';
+        return father[parentId] === minParentId;
     });
 };
 

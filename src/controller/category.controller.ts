@@ -23,7 +23,7 @@ export class CategoryController {
       if (res1) {
         return  { code: 200, message: '分类已经存在', success: false };
       }
-      const res = await this.categoryService.creatCategory(params);
+      await this.categoryService.creatCategory(params);
       return  { code: 200,  message: '操作成功', success: true };
     } catch (e) {
       return  { code: 200, message: e.errorMessage, success: false };
@@ -37,7 +37,7 @@ export class CategoryController {
   @Post('update')
   public async updateCategory(@Body() params: UpdateCategoryDto) {
     try {
-      const res = await this.categoryService.updateCategory(params);
+      await this.categoryService.updateCategory(params);
       return  { code: 200, message: '操作成功', success: true };
     } catch (e) {
       return  { code: 200, message: e.errorMessage, success: false };

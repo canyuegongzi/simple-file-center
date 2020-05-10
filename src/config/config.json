@@ -1,0 +1,28 @@
+
+{
+    "qiniuUploadConfig": {
+        "accessKey": "",
+        "secretKey": "",
+        "bucket": "",
+        "scope": "",
+        "expires": "",
+        "origin": "",
+        "persistentNotifyUrl": ""
+    },
+    "config": {
+        "connectMicroservice": 3002,
+        "port": 8883,
+        "tokenSetTimeOut": 7200,
+        "host": "",
+        "globalPrefix": "simple-file-center/v1.0"
+    },
+    "mysqlConfig": {
+        "host": "",
+        "userName": "",
+        "password": ""
+    },
+    "redisConfig": {
+        "name": "user_token",
+        "url": "redis://127.0.0.1:6379/4"
+    }
+}

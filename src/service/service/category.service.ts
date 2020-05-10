@@ -21,17 +21,24 @@ export class CategoryService {
    */
   public async getList(query: QueryCategoryDtoDto): Promise<any> {
     try {
+      const queryConditionList = ['a.isDelete = :isDelete'];
+      if (query.name) {
+        queryConditionList.push('a.name LIKE :name');
+      }
+      const queryCondition = queryConditionList.join(' AND ');
       const res = await this.categoryRepository
-          .createQueryBuilder('c')
-          .orWhere('c.name like :name', { name: `${query.name.length > 2 ? `%${query.name}%` : '%%'}`})
-          .where('.isDelete = :isDelete', { isDelete: 0})
-          .orderBy('c.name', 'ASC')
+          .createQueryBuilder('a')
+          .where(queryCondition, {
+            name: `%${query.name}%`,
+            isDelete: 0,
+          })
+          .orderBy('a.name', 'ASC')
           .skip((query.page - 1) * query.pageSize)
           .take(query.pageSize)
           .getManyAndCount();
       return  { data: res[0], count: res[1]};
     } catch (e) {
-       throw new ApiException(e.errorMessage, ApiErrorCode.AUTHORITY_CREATED_FILED, 200);
+      throw new ApiException(e.errorMessage, ApiErrorCode.AUTHORITY_CREATED_FILED, 200);
     }
   }
 
