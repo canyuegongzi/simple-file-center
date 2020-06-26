@@ -10,11 +10,11 @@ import { config } from './config/config.json';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.use(session({
-    secret :  'secret', // 对session id 相关的cookie 进行签名
+    secret :  'secret',
     resave : true,
-    saveUninitialized: true, // 是否保存未初始化的会话
+    saveUninitialized: true,
     cookie : {
-      maxAge : 1000 * 60 * 3, // 设置 session 的有效时间，单位毫秒
+      maxAge : 1000 * 60 * 3,
     },
   }));
   // 允许跨域
